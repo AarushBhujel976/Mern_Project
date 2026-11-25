@@ -1,0 +1,1100 @@
+================================================================================
+                MERN PORTFOLIO TEMPLATE - COMPLETE BUILD EXPLANATION
+================================================================================
+
+This document explains, from start to finish, how this portfolio website template
+was designed and built. It covers what was created, why each decision was made,
+how to run it, how to customize it, how to deploy it, and how it was verified.
+
+The template is a full MERN application:
+
+    M - MongoDB      (database)
+    E - Express      (backend web framework)
+    R - React        (frontend UI library, powered by Vite)
+    N - Node.js      (backend runtime)
+
+The folder you are in is the project root. Everything below is real, working code
+that was generated and tested on this machine.
+
+
+================================================================================
+1. WHAT THIS PROJECT IS
+================================================================================
+
+A complete, production-shaped personal portfolio website with:
+
+  - A polished one-page portfolio (hero, about, skills, projects, contact) with
+    a working contact form.
+  - A REST API that stores projects, profile content, and contact messages in
+    MongoDB.
+  - A JWT-protected admin dashboard where you can add/delete projects and read,
+    mark-read, and delete contact messages.
+  - Dark and light themes with a toggle and persistence.
+  - Smooth scroll-reveal animations, responsive layouts, and accessible markup.
+  - Demo/fallback content so the site looks complete even before the API is
+    seeded or running.
+
+It is intentionally a "template": the content is generic (a fictional developer
+named Aarush Bhujel), the colors are tokenized, and the structure is modular so you
+can rebrand it quickly.
+
+
+================================================================================
+2. FEATURE OVERVIEW
+================================================================================
+
+Public site:
+  - Fixed, blurred navigation bar with section links and a mobile menu.
+  - Hero section with gradient name, role, bio, CTA buttons, social links, and an
+    animated avatar ring with floating tech badges.
+  - About section with bio, location/email/focus facts, and stat tiles.
+  - Skills section rendered from grouped skill data.
+  - Projects section fetched from the API, with category filters, featured badges,
+    gradient cover art (or real images if provided), tech chips, and links.
+  - Individual project detail pages (case study view).
+  - Contact form that posts to the API and saves messages in MongoDB.
+  - Footer with navigation, contact info, and admin login link.
+  - Light/dark theme toggle (saved in localStorage, respects OS preference first).
+
+Admin:
+  - Login page with email/password.
+  - Protected dashboard with two tabs: Messages and Projects.
+  - Messages: unread badge, mark as read, delete.
+  - Projects: create a project via a form, list projects, delete projects, and
+    open any project's public page.
+  - Automatic logout/redirect if the token is missing or expired.
+
+Backend:
+  - REST API with validation, consistent error responses, rate limiting, CORS,
+    and security headers.
+  - JWT authentication with bcrypt password hashing.
+  - Seed script that creates an admin user plus demo profile/projects/messages.
+
+
+================================================================================
+3. TECH STACK
+================================================================================
+
+Backend (server/):
+  - Node.js (ES modules, "type": "module")
+  - Express 4
+  - Mongoose 8 (MongoDB ODM)
+  - jsonwebtoken (JWT auth)
+  - bcryptjs (password hashing)
+  - dotenv (environment variables)
+  - cors (cross-origin allowlist)
+  - helmet (security headers)
+  - morgan (request logging in development)
+  - express-rate-limit (API/brute-force protection)
+  - nodemon (dev auto-restart)
+
+Frontend (client/):
+  - React 18
+  - Vite 6 (dev server + build tool)
+  - react-router-dom 6 (routing)
+  - axios (HTTP client with interceptors)
+  - Plain modern CSS (custom properties / design tokens, no UI framework)
+  - Inline SVG icon components (no icon dependency)
+
+Root:
+  - concurrently (runs server + client together with one command)
+
+
+================================================================================
+4. PROJECT STRUCTURE
+================================================================================
+
+PortFolio(MERN)/
+|
+|-- package.json                  Root scripts (install-all, dev, build, seed)
+|-- package-lock.json
+|-- .gitignore                    Ignores node_modules, dist, .env, logs, etc.
+|-- EXPLANATION.txt               This document
+|
+|-- server/
+|   |-- package.json              Server deps and scripts (start, dev, seed)
+|   |-- .env                      Local environment (already created, gitignored)
+|   |-- .env.example              Template for environment variables
+|   |-- server.js                 Express entry point and middleware wiring
+|   |
+|   |-- config/
+|   |   `-- db.js                 MongoDB connection helper
+|   |
+|   |-- models/
+|   |   |-- Project.js            Portfolio project schema (+ slug generation)
+|   |   |-- Message.js            Contact message schema
+|   |   |-- User.js               Admin user schema (+ bcrypt hashing)
+|   |   `-- Profile.js            Single "site owner" profile schema
+|   |
+|   |-- controllers/
+|   |   |-- authController.js     login, register (bootstrap only), getMe
+|   |   |-- projectController.js  CRUD for projects
+|   |   |-- contactController.js  create/list/read/delete messages
+|   |   `-- profileController.js  get/upsert profile
+|   |
+|   |-- routes/
+|   |   |-- authRoutes.js
+|   |   |-- projectRoutes.js
+|   |   |-- contactRoutes.js
+|   |   `-- profileRoutes.js
+|   |
+|   |-- middleware/
+|   |   |-- auth.js               Bearer-token JWT protection
+|   |   `-- errorHandler.js       notFound + centralized error formatting
+|   |
+|   |-- utils/
+|   |   `-- generateToken.js      Signs JWTs
+|   |
+|   |-- data/
+|   |   `-- seedData.js           Demo profile, skills, projects
+|   |
+|   `-- seed/
+|       `-- seed.js               Wipes + inserts demo data and admin user
+|
+`-- client/
+    |-- package.json
+    |-- vite.config.js            Dev server + /api proxy to localhost:5000
+    |-- index.html                App shell (title, meta, favicon)
+    |-- .env.example              VITE_API_URL documentation
+    |
+    |-- public/
+    |   `-- favicon.svg
+    |
+    `-- src/
+        |-- main.jsx              React root; wraps app in providers
+        |-- App.jsx               Router + layout (navbar/footer)
+        |-- index.css             Complete design system + all styles
+        |
+        |-- api/
+        |   `-- axios.js          Axios instance, auth header + 401 handling
+        |
+        |-- context/
+        |   |-- ThemeContext.jsx  Dark/light theme + persistence
+        |   |-- AuthContext.jsx   Login state, token, logout
+        |   `-- ProfileContext.jsx Loads profile once for the whole app
+        |
+        |-- hooks/
+        |   |-- useFetch.js       Small GET helper with fallback support
+        |   `-- useSectionNav.js  Scroll to section, navigating home if needed
+        |
+        |-- utils/
+        |   |-- format.js         getInitials, formatDate, hashHue
+        |   `-- scroll.js         Smooth scrollToSection
+        |
+        |-- data/
+        |   `-- fallbackData.js   Demo content used if API is offline/empty
+        |
+        |-- components/
+        |   |-- Navbar.jsx
+        |   |-- Footer.jsx
+        |   |-- Hero.jsx
+        |   |-- About.jsx
+        |   |-- Skills.jsx
+        |   |-- Projects.jsx
+        |   |-- ProjectCard.jsx
+        |   |-- Contact.jsx
+        |   |-- Reveal.jsx        IntersectionObserver reveal-on-scroll wrapper
+        |   |-- SocialLinks.jsx   Maps social labels to icons
+        |   |-- Loader.jsx
+        |   |-- ScrollToTop.jsx
+        |   |-- ProtectedRoute.jsx
+        |   `-- Icons.jsx         Inline SVG icon set
+        |
+        `-- pages/
+            |-- Home.jsx          Composes all public sections
+            |-- ProjectDetail.jsx Individual project case study
+            |-- Login.jsx         Admin login
+            `-- Admin.jsx         Protected admin dashboard
+
+
+================================================================================
+5. HOW TO RUN IT
+================================================================================
+
+Prerequisites:
+  - Node.js 18+ (tested on Node 24)
+  - MongoDB running locally, OR a MongoDB Atlas connection string
+  - npm
+
+Step 1 - Install everything (from the project root):
+
+    npm run install-all
+
+  This installs root dependencies (concurrently), server dependencies, and
+  client dependencies. If you prefer, you can run each manually:
+
+    npm install
+    npm install --prefix server
+    npm install --prefix client
+
+Step 2 - Environment:
+
+  A local server/.env has already been created for convenience and is ignored by
+  git. If you are starting fresh, copy the example:
+
+    Copy-Item server/.env.example server/.env      (PowerShell)
+    cp server/.env.example server/.env             (macOS/Linux)
+
+  Then edit server/.env:
+    - Point MONGO_URI at your MongoDB.
+    - Replace JWT_SECRET with a long random string.
+    - Set ADMIN_NAME / ADMIN_EMAIL / ADMIN_PASSWORD for the seeded admin.
+
+Step 3 - Seed demo data (recommended the first time):
+
+    npm run seed
+
+  This creates the admin account and demo profile/projects. It DELETES existing
+  Users, Profiles, Projects, and Messages in the target database, so only run it
+  against a development database.
+
+Step 4 - Start both apps:
+
+    npm run dev
+
+  This starts:
+    - API:    http://localhost:5000
+    - Client: http://localhost:5173
+
+  Or start them separately:
+
+    npm run server
+    npm run client
+
+Step 5 - Log in to the admin dashboard:
+
+    http://localhost:5173/login
+
+  Default seeded credentials come from ADMIN_EMAIL / ADMIN_PASSWORD in
+  server/.env. Change them before seeding or deploying.
+
+Step 6 - Production build (frontend):
+
+    npm run build
+
+  The static build is written to client/dist.
+
+
+================================================================================
+6. ENVIRONMENT VARIABLES
+================================================================================
+
+server/.env (and server/.env.example):
+
+  NODE_ENV        development | production. Hides error stacks in production.
+  PORT            API port (default 5000).
+  MONGO_URI       MongoDB connection string.
+  JWT_SECRET      Secret used to sign JWTs. Use a long random value in prod.
+  JWT_EXPIRES_IN  Token lifetime (default 7d).
+  CLIENT_URL      Comma-separated allowed frontend origins for CORS.
+  ADMIN_NAME      Name for the seeded admin user.
+  ADMIN_EMAIL     Email for the seeded admin user.
+  ADMIN_PASSWORD  Password for the seeded admin user (min 8 chars).
+
+client/.env (optional):
+
+  VITE_API_URL    API base URL. Defaults to /api, which works in development
+                  because Vite proxies /api to http://localhost:5000. In
+                  production, set this to your deployed API, e.g.
+                  https://your-api.com/api.
+
+IMPORTANT: .env files are listed in .gitignore. Never commit real secrets.
+
+
+================================================================================
+7. BACKEND IN DETAIL
+================================================================================
+
+7.1 Entry point and middleware (server/server.js)
+
+  The server loads environment variables with dotenv, connects to MongoDB, then
+  builds the Express app in this order:
+
+    1. helmet()                  Security-related HTTP headers.
+    2. cors(...)                 Allowlist from CLIENT_URL (supports commas).
+    3. express.json(...)         JSON body parsing with a 100kb size limit.
+    4. express.urlencoded(...)   Form body parsing.
+    5. morgan('dev')             Request logs outside production.
+    6. Global API rate limiter   300 requests / 15 minutes on /api.
+    7. /api/health               Simple health check (status, uptime, timestamp).
+    8. Feature routes            /api/auth, /api/projects, /api/profile,
+                                 /api/contact.
+    9. notFound                  Returns a 404 for unknown routes.
+   10. errorHandler              Formats errors consistently.
+
+  Finally it listens on PORT (default 5000).
+
+  Why this order: security and parsing must happen before routes; 404 and error
+  handlers must be registered last so they catch everything.
+
+7.2 Database (server/config/db.js)
+
+  A small async helper calls mongoose.connect(process.env.MONGO_URI), logs the
+  connected host, and exits the process with an error if the connection fails.
+  Exiting early is intentional: an API without a database is not useful.
+
+7.3 Models
+
+  Project (server/models/Project.js)
+    - title (required, max 120)
+    - slug (unique, auto-generated from title in a pre-validate hook)
+    - summary (required, max 300)
+    - description (max 5000, used on the detail page)
+    - techStack (array of strings)
+    - image, liveUrl, repoUrl (strings)
+    - category, year, featured (boolean), order (number for sorting)
+    - timestamps (createdAt, updatedAt)
+
+    The slug hook converts "My Cool App" to "my-cool-app". Slugs are unique, so
+    duplicate titles produce a friendly duplicate-key error via the error handler.
+
+  Message (server/models/Message.js)
+    - name (required, max 80)
+    - email (required, lowercase, regex-validated)
+    - subject (default "Portfolio contact", max 120)
+    - message (required, max 2000)
+    - read (boolean, default false)
+    - timestamps
+
+  User (server/models/User.js)
+    - name, email (unique, lowercase, regex-validated)
+    - password (required, min 8, select: false so it is never returned by default)
+    - role (enum "admin", default "admin")
+    - timestamps
+    - pre-save hook hashes the password with bcrypt (12 salt rounds) only when the
+      password field is modified.
+    - matchPassword(entered) compares with bcrypt.
+    - toSafeJSON() returns id/name/email/role only (never the password).
+
+  Profile (server/models/Profile.js)
+    - name (required), headline, bio, location, email, phone, avatar, resumeUrl
+    - socials: [{ label, url }]
+    - skills:  [{ category, items: [String] }]
+    - timestamps
+
+    Subdocuments use { _id: false } because they are simple value objects and do
+    not need their own identifiers.
+
+  Why a single Profile document instead of many rows? A portfolio has exactly one
+  owner. The API reads the first (and only) document and upserts it on update.
+
+7.4 Authentication (server/middleware/auth.js, utils/generateToken.js)
+
+  - generateToken(id) signs { id } with JWT_SECRET and JWT_EXPIRES_IN.
+  - protect reads "Authorization: Bearer <token>", verifies it, loads the user,
+    attaches it to req.user, and calls next(). Any failure returns 401.
+
+  Login flow (authController.login):
+    1. Require email and password.
+    2. Find the user by email with .select('+password').
+    3. Compare the password with bcrypt.
+    4. Return { token, user } where user is the safe JSON.
+
+  Register flow (authController.register):
+    - Only allowed when there are ZERO users in the database. This lets a fresh
+      deployment bootstrap its first admin, but prevents public sign-ups once an
+      admin exists. The seed script normally creates the admin, so this endpoint
+      is effectively locked afterward.
+
+7.5 Controllers and business logic
+
+  projectController.js
+    - getProjects: supports optional query filters:
+        ?featured=true|false, ?category=Name, ?search=text
+      Search matches title or techStack with a case-insensitive regex.
+      Results are sorted by order (ascending), then newest first.
+    - getProject: find by MongoDB _id; 404 if missing.
+    - createProject: create from request body; Mongoose validates.
+    - updateProject: findByIdAndUpdate with runValidators; 404 if missing.
+    - deleteProject: findByIdAndDelete; 404 if missing.
+
+  contactController.js
+    - createMessage: creates a message and returns a friendly success text.
+    - getMessages: newest first.
+    - markMessageRead: sets read: true.
+    - deleteMessage: removes it.
+
+  profileController.js
+    - getProfile: returns the first profile document or null.
+    - upsertProfile: findOneAndUpdate({}, body, { upsert: true,
+      runValidators: true, setDefaultsOnInsert: true }).
+
+7.6 Routes / API reference
+
+  Base URL: http://localhost:5000/api
+
+  Health
+    GET    /health
+
+  Auth
+    POST   /auth/login          { email, password } -> { token, user }
+    POST   /auth/register       { name, email, password } -> only if no users
+    GET    /auth/me             Bearer token -> safe user JSON
+
+  Projects
+    GET    /projects            ?featured=&category=&search=
+    GET    /projects/:id
+    POST   /projects            Bearer token (admin)
+    PUT    /projects/:id        Bearer token (admin)
+    DELETE /projects/:id        Bearer token (admin)
+
+  Profile
+    GET    /profile
+    PUT    /profile             Bearer token (admin), upserts the profile
+
+  Contact
+    POST   /contact             public, limited to 10 requests / hour / IP
+    GET    /contact             Bearer token (admin)
+    PATCH  /contact/:id/read    Bearer token (admin)
+    DELETE /contact/:id         Bearer token (admin)
+
+  Status codes:
+    200 OK, 201 Created, 400 Validation/duplicate, 401 Unauthorized,
+    403 Forbidden (register when admin exists), 404 Not found,
+    429 Too many requests, 500 Server error.
+
+7.7 Seed script (server/seed/seed.js)
+
+  Run with: npm run seed
+
+  What it does:
+    1. Loads .env and connects to MongoDB.
+    2. Deletes all Users, Profiles, Projects, and Messages.
+    3. Creates the admin user from ADMIN_* env values (password hashed by the
+       model hook).
+    4. Inserts the demo Profile and six demo Projects from data/seedData.js.
+    5. Prints the admin credentials and closes the connection.
+
+  Warning: it wipes those four collections in the target database. Use it only on
+  a development database. This is also why the automated verification used a
+  separate database named portfolio_mern_test.
+
+7.8 Error handling (server/middleware/errorHandler.js)
+
+  - notFound turns unknown routes into a 404 error.
+  - errorHandler inspects the error:
+      CastError        -> 404 "Resource not found" (bad ObjectId)
+      Duplicate key    -> 400 "Duplicate value for <field>"
+      ValidationError  -> 400 with joined validation messages
+      Otherwise        -> existing status or 500
+    It returns { message, stack } and omits the stack in production.
+
+7.9 Security measures
+
+  - helmet for secure HTTP headers.
+  - CORS allowlist from CLIENT_URL.
+  - Global rate limit on /api (300 / 15 min).
+  - Stricter login/register limit (20 / 15 min).
+  - Stricter contact limit (10 / hour).
+  - JWT-protected write/admin routes.
+  - bcrypt password hashing with 12 rounds.
+  - password field is select: false and never serialized.
+  - Mongoose schema validation on all writes.
+  - JSON body size limit (100kb) to reduce abuse.
+  - Secrets live in .env (gitignored).
+  - The first-admin register endpoint is disabled once a user exists.
+
+  For a real deployment you should also add HTTPS, a strong JWT secret, a
+  production CORS origin, and database backups. You may also want an email
+  notification on new contact messages.
+
+
+================================================================================
+8. FRONTEND IN DETAIL
+================================================================================
+
+8.1 Bootstrap and routing
+
+  main.jsx mounts React into #root inside these providers (outer to inner):
+    BrowserRouter -> ThemeProvider -> AuthProvider -> ProfileProvider -> App
+
+  App.jsx renders:
+    - ScrollToTop (scrolls to top on route change)
+    - Navbar
+    - Routes:
+        /                 Home (all public sections)
+        /projects/:id     ProjectDetail
+        /login            Login
+        /admin            Admin (wrapped in ProtectedRoute)
+        *                 Home (fallback)
+    - Footer
+
+  Why Vite? Fast dev server, instant HMR, and a small optimized production build.
+  vite.config.js proxies /api to http://localhost:5000, so the frontend can use
+  relative URLs and avoid CORS headaches in development.
+
+8.2 Global state (contexts)
+
+  ThemeContext
+    - Reads a stored theme or the OS preference (prefers-color-scheme).
+    - Writes data-theme="dark|light" on <html> and persists to localStorage.
+    - Exposes { theme, toggleTheme }.
+
+  AuthContext
+    - Initializes user/token from localStorage.
+    - login(email, password) calls POST /auth/login, stores token + user, updates
+      state.
+    - logout() clears storage and state.
+    - Exposes { user, token, isAuthenticated, login, logout }.
+
+  ProfileContext
+    - In development (npm run dev), uses the local fallback profile directly so
+      edits to fallbackData.js appear immediately without touching MongoDB.
+    - In production builds, fetches GET /profile once on mount and merges the
+      result over the fallback, so missing fields still have sensible values.
+    - If the API is offline, it quietly keeps the fallback.
+    - Exposes { profile, loading }.
+
+  Why contexts? Profile data is needed by the navbar, hero, about, skills,
+  contact, and footer. Loading it once avoids duplicate requests and keeps
+  everything consistent after admin edits.
+
+8.3 API client (src/api/axios.js)
+
+  - Creates an axios instance with baseURL VITE_API_URL or /api.
+  - Request interceptor attaches the Bearer token from localStorage when present.
+  - Response interceptor clears stored auth on any 401, so expired sessions do not
+    leave the UI in a broken state.
+
+8.4 Hooks
+
+  useFetch(url, { fallback, enabled })
+    - GETs the URL, returns { data, loading, error, refetch }.
+    - If the request fails, or returns an empty array, it uses the fallback.
+    - When enabled is false, it returns the fallback without making a request.
+    - Projects disables the request in development so fallbackData.js edits show
+      immediately; production builds still fetch the API.
+
+  useSectionNav()
+    - Returns a function that smoothly scrolls to a section by id.
+    - If the user is on a different route (e.g., /admin or /projects/:id), it
+      navigates to "/" first, then scrolls after a short delay.
+    - Used by the navbar and footer.
+
+8.5 Components
+
+  Navbar
+    - Brand with initials, section links, theme toggle, Admin/Dashboard button,
+      and a mobile hamburger menu.
+    - Adds a blurred background after scrolling.
+
+  Hero
+    - Eyebrow badge, gradient name, role, bio, primary CTA ("View my work"),
+      secondary CTA (resume download or contact), social links.
+    - Animated conic-gradient avatar ring; if no avatar URL, shows initials.
+    - Floating tech chips and a "scroll to explore" hint.
+
+  About
+    - Bio, fact list (location, email, focus), and four stat tiles.
+    - Stat values are derived from the profile's skills.
+
+  Skills
+    - Renders grouped skills from profile.skills as cards with chips.
+
+  Projects
+    - Fetches projects with useFetch and falls back to demo data.
+    - Builds category filter chips dynamically.
+    - Shows an empty state if a filter has no results, and a small note if the
+      API is unreachable.
+
+  ProjectCard
+    - Cover area: uses project.image if provided, otherwise a deterministic
+      gradient generated from the title hash plus the project's initials.
+    - Featured badge, category/year meta, summary, tech chips, and links to the
+      case study, live site, and repo.
+
+  Contact
+    - Controlled form (name, email, subject, message).
+    - POSTs to /contact, shows loading, success, or error states, and resets on
+      success.
+    - Displays direct contact info and social links.
+
+  Footer
+    - Brand, tagline, social links, section links, contact info, admin login,
+      copyright, and a "Built with the MERN stack" note.
+
+  Reveal
+    - Wraps content and uses IntersectionObserver to add an "is-visible" class
+      when it scrolls into view.
+    - Supports a transition delay for staggered animations.
+    - Disconnects after the first reveal for performance.
+
+  SocialLinks
+    - Maps labels (GitHub, LinkedIn, Twitter, Email) to inline SVG icons, with a
+      generic external-link icon as a fallback.
+    - Handles mailto: links without target="_blank".
+
+  ProtectedRoute
+    - Redirects to /login (preserving the intended location) when no user is in
+      AuthContext.
+
+  ScrollToTop
+    - Resets scroll position on route changes.
+
+  Loader
+    - Accessible spinner with a label.
+
+  Icons
+    - A dependency-free set of inline SVG icons (sun, moon, menu, close, arrows,
+      external link, GitHub, LinkedIn, Twitter, mail, map pin, send, download,
+      trash, check, inbox, layers, code, briefcase, sparkles).
+
+8.6 Pages
+
+  Home
+    - Simply composes Hero, About, Skills, Projects, Contact.
+
+  ProjectDetail
+    - Reads :id from the URL, fetches the project, and falls back to a matching
+      demo project if the API is offline.
+    - Shows a back link, title, summary, actions, a large gradient/image cover,
+      a case-study body (supports "- " bullet lines), and a sidebar with tech
+      stack and details.
+
+  Login
+    - Redirects to /admin if already logged in.
+    - Email/password form, error handling, and loading state.
+    - Returns to the originally requested protected page after login.
+
+  Admin
+    - Redirects via ProtectedRoute if not authenticated.
+    - Loads messages and projects in parallel.
+    - Handles 401 by logging out and redirecting.
+    - Messages tab: unread badge, read status pill, mark-read, delete.
+    - Projects tab: create form (title, category, summary, description, tech
+      stack, year, image URL, live URL, repo URL, featured checkbox), project
+      list with View and Delete.
+    - Uses window.confirm before destructive actions.
+
+8.7 Styling and theming
+
+  All styling lives in one file, client/src/index.css, organized into sections:
+
+    - Theme tokens (:root for dark, [data-theme="light"] overrides)
+    - Reset and base styles
+    - Buttons, chips, social links
+    - Reveal animation
+    - Navbar
+    - Hero
+    - Sections
+    - About
+    - Skills
+    - Projects
+    - Contact
+    - Footer
+    - Project detail
+    - Auth/login
+    - Admin dashboard
+    - Loader
+    - Keyframes
+    - Responsive breakpoints (980px, 860px, 640px, 380px)
+    - prefers-reduced-motion support
+
+  Key design tokens:
+    --bg, --bg-elevated, --surface, --surface-hover, --border
+    --text, --text-muted
+    --primary, --secondary, --accent, --danger, --success
+    --gradient, --gradient-soft, --shadow, --shadow-glow
+    --radius, --radius-sm, --nav-height
+    --font-body (Inter), --font-display (Space Grotesk)
+
+  The theme toggle only flips data-theme on <html>; every component uses tokens,
+  so the whole site changes instantly. Fonts are loaded from Google Fonts with
+  system-font fallbacks.
+
+  Design choices:
+    - Glassy translucent surfaces with soft borders and deep shadows.
+    - Indigo-to-cyan gradient as the signature accent, with pink used in the
+      avatar ring.
+    - Generous spacing, rounded corners, and consistent pill-shaped controls.
+    - Grid-based responsive layouts that collapse cleanly to one column.
+
+8.8 Animations and accessibility
+
+  Animations:
+    - Scroll reveals via IntersectionObserver.
+    - Floating tech chips.
+    - Rotating avatar ring.
+    - Hover lifts on cards and buttons.
+    - All of this is disabled or minimized under prefers-reduced-motion.
+
+  Accessibility:
+    - Semantic landmarks (header, nav, main, section, footer, article).
+    - aria-label on icon-only buttons and social links.
+    - aria-expanded on the mobile menu toggle.
+    - aria-selected/role="tab" on project filters.
+    - Visible focus styles.
+    - Labels tied to form inputs via htmlFor/id.
+    - Loading states announced with role="status" aria-live="polite".
+    - Color contrast tuned for both themes.
+
+8.9 Offline/demo fallback data (src/data/fallbackData.js)
+
+  The frontend ships with a demo profile and six demo projects. Behavior:
+
+    - In development, ProfileContext, Projects, and ProjectDetail read directly
+      from fallbackData.js, so edits appear immediately without touching MongoDB.
+    - In production builds, the API is the source of truth; the fallback is used
+      if the request fails or returns an empty array.
+    - ProjectDetail can resolve a demo project by its demo id if the API is down.
+
+  Why? A template should look finished the moment you open it, even before you
+  configure MongoDB or seed data. Production deployments still use real data.
+
+  Note: fallback project ids are strings like "demo-orbit". Real projects use
+  MongoDB ObjectIds. Both work with the detail page because it falls back to a
+  local lookup.
+
+
+================================================================================
+9. ADMIN DASHBOARD
+================================================================================
+
+  Access: click "Admin" in the navbar/footer, or visit /login.
+
+  After logging in you land on /admin with two tabs:
+
+  Messages
+    - New messages are highlighted and counted in the tab badge.
+    - "Mark read" flips the read flag.
+    - "Delete" removes the message (with confirmation).
+    - Email addresses are clickable mailto links.
+
+  Projects
+    - The left form creates a project. Only Title and Summary are required by
+      the backend; other fields are optional.
+    - Tech stack is entered comma-separated and converted to an array.
+    - "Feature this project" sets the featured flag.
+    - The right list shows all projects with View (public page) and Delete.
+
+  Session behavior:
+    - The JWT is stored in localStorage as portfolio_token.
+    - The user object is stored as portfolio_user.
+    - Any 401 from the API clears both and redirects to login.
+    - Logging out clears storage and returns to the home page.
+
+  Profile editing:
+    - The backend supports PUT /api/profile, but the UI does not include a profile
+      editor (to keep the dashboard focused). You can edit profile content via:
+        1. The seed data file + re-seed, or
+        2. A REST client / curl with an admin token, or
+        3. Adding a profile form to Admin.jsx (the API is ready for it).
+
+
+================================================================================
+10. HOW TO CUSTOMIZE
+================================================================================
+
+  Change your name, bio, socials, and skills:
+    Option A (recommended for a fresh start): edit server/data/seedData.js, then
+      run npm run seed again.
+    Option B (already deployed): PUT the new profile to /api/profile with an
+      admin token.
+    Option C: extend the Admin dashboard with a profile form.
+
+  Change demo projects:
+    Edit server/data/seedData.js and re-seed, or use the Admin Projects tab.
+    Also update client/src/data/fallbackData.js so the offline demo matches your
+    real content.
+
+  Change branding:
+    - Page title/description: client/index.html.
+    - Favicon: client/public/favicon.svg.
+    - Navbar/footer text: components/Navbar.jsx and Footer.jsx.
+    - Fallback owner name: client/src/data/fallbackData.js.
+
+  Change colors:
+    Edit the CSS variables at the top of client/src/index.css:
+      --primary, --secondary, --accent, --gradient, --bg, --surface, etc.
+    Both dark and light themes have their own token blocks.
+
+  Change fonts:
+    Replace the @import at the top of index.css and update --font-body /
+    --font-display.
+
+  Add a new section:
+    1. Create client/src/components/YourSection.jsx.
+    2. Add it to client/src/pages/Home.jsx.
+    3. Add an entry to the links array in Navbar.jsx (and optionally Footer.jsx).
+    4. Give the section an id matching the link id and a scroll-margin-top.
+
+  Use real images:
+    - Set project.image to an image URL in the admin form or seed data.
+    - Set profile.avatar to an image URL.
+    - If no image is set, the UI generates a gradient cover and shows initials.
+
+  Remove the admin link:
+    Delete the Admin/Dashboard Link from Navbar.jsx and Footer.jsx.
+
+  Change admin credentials:
+    Edit ADMIN_EMAIL / ADMIN_PASSWORD in server/.env, then re-seed (this wipes
+    dev data), or create a new user manually.
+
+  Adjust rate limits:
+    See server/server.js (global), routes/authRoutes.js (login), and
+    routes/contactRoutes.js (contact).
+
+
+================================================================================
+11. DEPLOYMENT GUIDE
+================================================================================
+
+  Database (MongoDB Atlas)
+    1. Create a free cluster and a database user.
+    2. Allow your API host's IP (or 0.0.0.0/0 for simplicity, not recommended).
+    3. Copy the connection string into MONGO_URI.
+    4. Run the seed once against the production DB (careful: it wipes data) or
+       create the first admin through POST /api/auth/register before seeding.
+
+  API (Render, Railway, Fly.io, etc.)
+    - Root/working directory: server (or repo root with a custom start command).
+    - Build command: npm install
+    - Start command: npm start
+    - Environment variables:
+        NODE_ENV=production
+        PORT (usually provided by the platform)
+        MONGO_URI
+        JWT_SECRET (long random value)
+        JWT_EXPIRES_IN=7d
+        CLIENT_URL=https://your-frontend-domain.com
+    - Health check path: /api/health
+
+  Frontend (Vercel, Netlify, Cloudflare Pages)
+    - Root directory: client
+    - Build command: npm run build
+    - Output directory: dist
+    - Environment variable:
+        VITE_API_URL=https://your-api-domain.com/api
+    - If you use client-side routing (React Router), configure a SPA fallback so
+      all routes serve index.html:
+        Vercel: a vercel.json rewrite to /index.html
+        Netlify: a _redirects file with "/* /index.html 200"
+
+  CORS
+    - Set CLIENT_URL on the API to the exact deployed frontend origin (no trailing
+      slash). Multiple origins are allowed, comma-separated.
+
+  Security checklist for production
+    - Strong, unique JWT_SECRET.
+    - HTTPS everywhere.
+    - Restrict CORS to your real domains.
+    - Use a least-privilege database user.
+    - Keep .env out of version control.
+    - Consider adding email notifications and spam protection to the contact form
+      (the current rate limit is a first line of defense).
+    - Back up your database.
+
+  Optional: serve the built client from Express
+    - Copy client/dist into the server and add express.static + a catch-all that
+      returns index.html. This makes the app a single deployable. It is not
+      included by default because separate deployments are simpler and scale
+      independently.
+
+
+================================================================================
+12. TROUBLESHOOTING
+================================================================================
+
+  "MongoDB connection error" on start
+    - Make sure the MongoDB service is running locally, or that your Atlas URI
+      and credentials are correct.
+    - Check MONGO_URI in server/.env.
+
+  Admin login fails
+    - Did you run npm run seed? The admin user is created by the seed script.
+    - Verify ADMIN_EMAIL / ADMIN_PASSWORD in server/.env and re-seed if needed.
+    - Passwords must be at least 8 characters.
+
+  The site shows demo content instead of my data
+    - The API may be offline or the projects collection may be empty.
+    - Start the API and run npm run seed.
+    - Check the browser console/network tab for failed /api requests.
+
+  CORS errors
+    - Set CLIENT_URL in server/.env to the exact frontend origin.
+    - Restart the API after changing .env.
+
+  Port already in use
+    - Change PORT in server/.env and update the Vite proxy target in
+      client/vite.config.js if you also change the API port.
+    - For the client, Vite will offer another port automatically.
+
+  401 on admin actions
+    - The token may have expired or the secret changed. Log out and back in.
+
+  Fonts look different offline
+    - Google Fonts may be blocked; the CSS falls back to system fonts.
+
+  Duplicate project error
+    - Titles generate unique slugs. Two projects with the same title conflict;
+      use a distinct title.
+
+  Contact form returns 429
+    - The contact endpoint is limited to 10 submissions per hour per IP. Wait or
+      adjust the limit in routes/contactRoutes.js.
+
+
+================================================================================
+13. VERIFICATION I PERFORMED
+================================================================================
+
+  Everything below was actually run on this machine during the build:
+
+  1. Dependency install
+       - Root: 25 packages
+       - Server: 139 packages
+       - Client: 94 packages
+
+  2. Server syntax check
+       - Ran node --check on every .js file in server/ (excluding node_modules).
+       - Result: all files passed.
+
+  3. Server module import smoke test
+       - Imported every model, controller, route, middleware, util, and the seed
+         data module in an ESM script.
+       - Result: "All server modules imported successfully."
+
+  4. Client production build
+       - Ran npm run build (Vite 6.4.6).
+       - Result: 117 modules transformed, build succeeded.
+       - Output: dist/index.html, dist/assets/index-*.css (~27 kB),
+         dist/assets/index-*.js (~268 kB, ~88 kB gzipped).
+
+  5. Full end-to-end API test against a real local MongoDB 8.3 instance
+       - Used a separate database (portfolio_mern_test) to avoid touching real
+         data, then dropped it afterward.
+       - Seeded the database, started the API on port 5055, and verified:
+           GET  /api/health                  -> 200 ok
+           GET  /api/projects                -> 200, 6 projects
+           GET  /api/profile                 -> 200, "Aarush Bhujel"
+           POST /api/auth/login              -> 200, admin token
+           GET  /api/auth/me                 -> 200, admin email
+           POST /api/contact                 -> 201, success message
+           GET  /api/contact                 -> 200, 1 message
+           PATCH /api/contact/:id/read       -> 200, read: true
+           DELETE /api/contact/:id           -> 200
+           POST /api/projects (with token)   -> 201, slug generated
+           PUT  /api/projects/:id            -> 200, featured updated
+           PUT  /api/profile                 -> 200, headline updated
+           POST /api/projects (no token)     -> 401, correctly blocked
+           DELETE /api/projects/:id          -> 200
+       - Result: "E2E TEST PASSED". The test database was then dropped.
+
+  A local server/.env was created so the project runs immediately. It is ignored
+  by git. Replace its JWT_SECRET and admin password before any real deployment.
+
+
+================================================================================
+14. STEP-BY-STEP BUILD LOG
+================================================================================
+
+  This is the chronological story of how the template was created from scratch.
+
+  Step 1 - Inspected the workspace
+    - Confirmed the target folder was empty and that Node.js 24 / npm 11 were
+      available, plus a running local MongoDB 8.3.
+
+  Step 2 - Planned the architecture
+    - Chose a monorepo-style layout: a root package for orchestration, a server
+      folder for the API, and a client folder for the React app.
+    - Decided on JWT auth so the admin dashboard could be genuinely functional,
+      not just static.
+    - Decided to ship demo/fallback data so the template looks complete without
+      any backend setup.
+
+  Step 3 - Created the folder skeleton
+    - Made server/{config,models,controllers,routes,middleware,utils,seed,data}
+      and client/src/{api,context,hooks,components,pages,data,utils}, plus
+      client/public.
+
+  Step 4 - Root configuration
+    - Added root package.json with install-all, dev (concurrently), server,
+      client, build, and seed scripts.
+    - Added .gitignore covering dependencies, builds, env files, logs, and OS/
+      editor noise.
+
+  Step 5 - Backend foundation
+    - Wrote server/package.json (ES modules, dependencies, scripts).
+    - Wrote .env.example and a local .env.
+    - Wrote server.js with security, parsing, logging, rate limiting, routes,
+      and error handling.
+    - Wrote config/db.js, utils/generateToken.js, middleware/auth.js, and
+      middleware/errorHandler.js.
+
+  Step 6 - Data layer
+    - Wrote the four Mongoose models: Project (with slug generation), Message,
+      User (with bcrypt hashing and safe JSON), and Profile (with socials and
+      skills subdocuments).
+
+  Step 7 - API layer
+    - Wrote auth, project, contact, and profile controllers with validation-
+      friendly error handling.
+    - Wrote the four route modules, applying JWT protection to every write/admin
+      endpoint and rate limits to login and contact.
+    - Wrote seed data with a realistic demo profile, skills, and six projects.
+    - Wrote the seed script that wipes demo collections and inserts the admin plus
+      demo content.
+
+  Step 8 - Frontend foundation
+    - Wrote client/package.json, vite.config.js (with /api proxy), index.html,
+      .env.example, and a custom SVG favicon.
+    - Wrote main.jsx with BrowserRouter and the three providers.
+    - Wrote App.jsx with the route table and layout.
+    - Wrote the axios instance with auth and 401 interceptors.
+    - Wrote ThemeContext, AuthContext, and ProfileContext.
+    - Wrote useFetch and useSectionNav hooks, plus format/scroll utilities.
+    - Wrote fallbackData.js mirroring the seed content.
+
+  Step 9 - UI components
+    - Built the icon set, Reveal, SocialLinks, Loader, ScrollToTop, and
+      ProtectedRoute primitives.
+    - Built Navbar (with mobile menu and theme toggle) and Footer.
+    - Built Hero, About, Skills, and Contact sections.
+    - Built ProjectCard and Projects (with filters, fallback, and empty states).
+
+  Step 10 - Pages
+    - Composed Home.
+    - Built ProjectDetail with API fetch, fallback lookup, and rich case-study
+      layout.
+    - Built Login with redirect handling.
+    - Built the Admin dashboard with Messages and Projects tabs, create/delete
+      flows, auth error handling, and unread counts.
+
+  Step 11 - Styling
+    - Wrote a full design system in index.css: tokens for both themes, all
+      component styles, gradients, glass surfaces, animations, responsive
+      breakpoints, and reduced-motion support.
+    - Kept everything in one stylesheet for easy theming and copying, while using
+      clear section banners for navigation.
+
+  Step 12 - Install and verify
+    - Installed root, server, and client dependencies.
+    - Ran syntax checks and an ESM import smoke test on the backend.
+    - Built the client for production.
+    - Ran a full end-to-end API test against a temporary MongoDB database and
+      dropped the test database afterward.
+
+  Step 13 - Documentation
+    - Wrote this EXPLANATION.txt covering architecture, setup, API, customization,
+      deployment, troubleshooting, verification, and the build log.
+
+
+================================================================================
+15. POSSIBLE NEXT STEPS
+================================================================================
+
+  Ideas to extend the template:
+    - Add a profile editor form to the admin dashboard (the PUT endpoint exists).
+    - Add image uploads (Multer + cloud storage) instead of image URLs.
+    - Add project editing (PUT) in the dashboard UI, not just delete.
+    - Add pagination or search to the admin message inbox.
+    - Add email notifications for new contact messages (Nodemailer/Resend).
+    - Add a blog with a Post model and MDX or rich-text rendering.
+    - Add automated tests (Vitest/React Testing Library + Supertest/Jest).
+    - Add a sitemap, Open Graph images, and structured data for SEO.
+    - Add a contact-form honeypot or CAPTCHA for extra spam protection.
+    - Add CI/CD (GitHub Actions) for linting, tests, and deployment.
+
+================================================================================
+END OF DOCUMENT
+================================================================================
