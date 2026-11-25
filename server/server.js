@@ -4,6 +4,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
@@ -15,6 +17,10 @@ import { notFound, errorHandler } from './middleware/errorHandler.js';
 dotenv.config();
 
 const app = express();
+
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
@@ -47,6 +53,17 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/contact', contactRoutes);
+
+if (process.env.NODE_ENV === 'production') {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const clientDist = path.resolve(__dirname, '../client/dist');
+
+  app.use(express.static(clientDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 app.use(notFound);
 app.use(errorHandler);

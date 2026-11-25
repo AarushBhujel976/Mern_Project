@@ -1,0 +1,180 @@
+name: Deploy portfolio to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "client/**"
+      - "server/**"
+      - "package.json"
+      - "package-lock.json"
+      - "infra/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      instance_type:
+        description: EC2 instance type
+        default: t2.micro
+        type: choice
+        options:
+          - t2.micro
+          - t2.small
+          - t2.medium
+          - t3.micro
+          - t3.small
+          - t3.medium
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME: mern-portfolio-stack
+  TEMPLATE: infra/ec2-instance.yaml
+  SITE_DIR: /usr/share/nginx/html
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Build client
+        run: npm run build --prefix client
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: client/dist/
+          retention-days: 7
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      SSH_OPTS: -i ec2-key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o LogLevel=ERROR
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate template
+        run: aws cloudformation validate-template --template-body "file://${{ env.TEMPLATE }}"
+
+      - name: Deploy stack
+        run: |
+          args=(
+            --stack-name "$STACK_NAME"
+            --template-file "$TEMPLATE"
+            --parameter-overrides InstanceType="${{ inputs.instance_type || 't2.micro' }}"
+            --no-fail-on-empty-changeset
+          )
+          aws cloudformation deploy "${args[@]}"
+
+      - name: Find instance and current public IP
+        id: instance
+        run: |
+          output() {
+            aws cloudformation describe-stacks \
+              --stack-name "$STACK_NAME" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+
+          INSTANCE_ID=$(output InstanceId)
+          KEY_ID=$(output KeyPairId)
+
+          STATE=$(aws ec2 describe-instances \
+            --instance-ids "$INSTANCE_ID" \
+            --query "Reservations[0].Instances[0].State.Name" \
+            --output text)
+          echo "Instance $INSTANCE_ID is $STATE"
+
+          if [ "$STATE" = "stopping" ]; then
+            aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
+            STATE=stopped
+          fi
+          if [ "$STATE" = "stopped" ]; then
+            aws ec2 start-instances --instance-ids "$INSTANCE_ID" > /dev/null
+          fi
+          aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+
+          IP=$(aws ec2 describe-instances \
+            --instance-ids "$INSTANCE_ID" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
+          echo "ip=$IP" >> "$GITHUB_OUTPUT"
+          echo "key_id=$KEY_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Get SSH key from SSM
+        run: |
+          aws ssm get-parameter \
+            --name "/ec2/keypair/${{ steps.instance.outputs.key_id }}" \
+            --with-decryption \
+            --query Parameter.Value \
+            --output text > ec2-key.pem
+          chmod 600 ec2-key.pem
+
+      - name: Wait for SSH and first-boot setup
+        env:
+          IP: ${{ steps.instance.outputs.ip }}
+        run: |
+          for i in $(seq 1 30); do
+            ssh $SSH_OPTS ec2-user@"$IP" true && break
+            echo "SSH not ready yet ($i/30), retrying in 10s..."
+            sleep 10
+          done
+
+          status=0
+          ssh $SSH_OPTS ec2-user@"$IP" 'cloud-init status --wait' || status=$?
+          if [ "$status" -eq 1 ]; then
+            echo "::error::UserData failed on the instance."
+            ssh $SSH_OPTS ec2-user@"$IP" 'sudo tail -n 40 /var/log/cloud-init-output.log'
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: dist
+
+      - name: Copy site to EC2
+        env:
+          IP: ${{ steps.instance.outputs.ip }}
+        run: |
+          tar -czf site.tar.gz -C dist .
+          scp $SSH_OPTS site.tar.gz ec2-user@"$IP":/tmp/site.tar.gz
+          ssh $SSH_OPTS ec2-user@"$IP" "rm -rf $SITE_DIR/* && tar -xzf /tmp/site.tar.gz -C $SITE_DIR && rm /tmp/site.tar.gz"
+
+      - name: Check the site is live
+        run: |
+          curl -fsS --retry 5 --retry-delay 3 "http://${{ steps.instance.outputs.ip }}" | grep -q 'id="root"'
+
+      - name: Show outputs
+        run: |
+          echo "### Live at http://${{ steps.instance.outputs.ip }}" >> "$GITHUB_STEP_SUMMARY"
+          aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs" \
+            --output table | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ec2-key.pem
